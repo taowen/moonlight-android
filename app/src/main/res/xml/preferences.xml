@@ -56,6 +56,12 @@
             android:title="填充刘海区域"
             android:defaultValue="false" />
 
+        <CheckBoxPreference
+            android:key="checkbox_ui_theme_white"
+            android:title="部分页面主题色为白色"
+            android:summary="安卓10及以上生效"
+            android:defaultValue="true" />
+
     </PreferenceCategory>
     <PreferenceCategory android:title="@string/category_audio_settings">
         <ListPreference
@@ -127,6 +133,13 @@
             android:title="@string/title_checkbox_flip_face_buttons"
             android:summary="@string/summary_checkbox_flip_face_buttons"
             android:defaultValue="false" />
+
+        <CheckBoxPreference
+            android:key="checkbox_flip_rumble_ff"
+            android:title="反转握把震动"
+            android:summary="如果你发现扣动左扳机是右边握把震动，则开启此选项。"
+            android:defaultValue="false" />
+
         <CheckBoxPreference
             android:key="checkbox_gamepad_touchpad_as_mouse"
             android:title="@string/title_checkbox_gamepad_touchpad_as_mouse"
@@ -142,6 +155,13 @@
             android:title="@string/title_checkbox_gamepad_motion_fallback"
             android:summary="@string/summary_checkbox_gamepad_motion_fallback"
             android:defaultValue="false" />
+
+        <CheckBoxPreference
+            android:key="checkbox_disable_trigger_deadzone"
+            android:title="禁用默认13%的手柄扳机死区"
+            android:summary="勾选后 手柄扳机死区 Moonlight不做限制【某些ASUS Gamepad设备除外】。"
+            android:defaultValue="false"/>
+
     </PreferenceCategory>
     <PreferenceCategory android:title="@string/category_input_settings"
         android:key="category_input_settings">
@@ -158,6 +178,13 @@
             android:key="checkbox_mouse_local_cursor"
             android:title="使用本地鼠标光标"
             android:summary="默认外接物理鼠标的光标会被捕获，此选项可显示安卓系统光标"
+            android:defaultValue="false" />
+
+
+        <CheckBoxPreference
+            android:key="checkbox_five_fingers_operate"
+            android:title="快速打开软键盘"
+            android:summary="使用五根手指点击屏幕，快速打开安卓系统输入法。\n默认触控板模式三指打开输入法。"
             android:defaultValue="false" />
 
 <!--        <CheckBoxPreference-->
@@ -349,6 +376,12 @@
             />
 
         <CheckBoxPreference
+            android:key="checkbox_enable_axi_test"
+            android:title="首页显示手柄调试入口"
+            android:summary="开启后会显示一个图标，快速打开手柄调试页面"
+            android:defaultValue="true"/>
+
+        <CheckBoxPreference
             android:key="checkbox_enable_sbs"
             android:title="Side-By-Side模式"
             android:summary="左右格式3D模式,仅供娱乐！需外接手柄使用！"
@@ -375,6 +408,19 @@
             android:key="checkbox_enable_joyconfix"
             android:title="兼容Switch JoyCon手柄"
             android:summary="如果你的JoyCon无法使用或识别按键有问题，可以尝试开启此功能。适配Android 10及以上"
+            android:defaultValue="false"/>
+
+        <CheckBoxPreference
+            android:key="checkbox_enable_ax_floating"
+            android:title="启用悬浮球（Beta）"
+            android:summary="开启后，点击打开快捷菜单。"
+            android:defaultValue="false"/>
+
+        <CheckBoxPreference
+            android:key="checkbox_enable_ax_floating_operate"
+            android:title="悬浮球点击操作"
+            android:dependency="checkbox_enable_ax_floating"
+            android:summary="切换为快速打开输入法软键盘"
             android:defaultValue="false"/>
 
         <com.limelight.preferences.SeekBarPreference
@@ -480,22 +526,22 @@
             android:title="屏幕灵敏度调整Y轴" />
 
         <com.limelight.preferences.SeekBarPreference
-            android:key="seekbar_touchpad_sensitivity_opacity"
+            android:key="seekbar_mouse_touchpad_sensitivity_x_opacity"
             seekbar:min="10"
             seekbar:step="10"
             android:max="300"
             android:defaultValue="100"
-            android:summary="适用于鼠标触控板模式及虚拟特殊按键触控板控件；\n两者共用一个灵敏度数值，但是灵敏度表现可能不一样。\n有人两个一起用吗？"
+            android:summary="适用于鼠标触控板模式"
             android:text="%"
             android:title="触控板灵敏度X轴" />
 
         <com.limelight.preferences.SeekBarPreference
-            android:key="seekbar_touchpad_sensitivity_y_opacity"
+            android:key="seekbar_mouse_touchpad_sensitivity_y_opacity"
             seekbar:min="10"
             seekbar:step="10"
             android:max="300"
             android:defaultValue="100"
-            android:summary="适用于鼠标触控板模式及虚拟特殊按键触控板控件；\n两者共用一个灵敏度数值，但是灵敏度表现可能不一样。\n有人两个一起用吗？"
+            android:summary="适用于鼠标触控板模式"
             android:text="%"
             android:title="触控板灵敏度Y轴" />
 
@@ -522,6 +568,18 @@
             android:title="导入自定义特殊指令配置文件"
             android:summary="每次都会覆盖原来的，请注意备份。"
             />
+
+        <Preference
+            android:key="import_switch_button_file"
+            android:title="导入自定义无障碍配置文件"
+            android:summary="每次都会覆盖原来的，请注意备份。"
+            />
+
+        <CheckBoxPreference
+            android:key="checkbox_enable_accessibility_show_log"
+            android:title="无障碍键盘模式显示捕获的键值"
+            android:summary="打开无障碍键盘，在月光app任意界面，输入按键，会弹出键值，用于自定义无障碍配置文件使用。"
+            android:defaultValue="false"/>
 
         <com.limelight.preferences.WebLauncherPreference
             android:title="软件版本更新"
@@ -563,11 +621,45 @@
             android:defaultValue="false" />
 
         <CheckBoxPreference
+            android:key="checkbox_enable_custom_axi_keyboard_file"
+            android:title="启用自定义虚拟按钮配置文件"
+            android:summary="优先使用导入的keyboards.json文件。"
+            android:defaultValue="false" />
+
+        <Preference
+            android:key="import_keyboard_json_file"
+            android:title="导入虚拟按钮配置文件"
+            android:summary="会覆盖替换掉APP内置默认的keyboards.json文件\n旧版本只能修改APK文件重新打包。"
+            />
+
+        <CheckBoxPreference
             android:key="checkbox_enable_keyboard_square"
             android:dependency="checkbox_enable_keyboard"
             android:title="普通按钮为方形按钮"
             android:summary="虚拟按钮形状为方形按钮，默认为圆形。"
             android:defaultValue="false" />
+
+
+        <com.limelight.preferences.SeekBarPreference
+            android:key="seekbar_touchpad_sensitivity_opacity"
+            seekbar:min="10"
+            seekbar:step="10"
+            android:max="300"
+            android:defaultValue="100"
+            android:summary="适用于虚拟特殊按键触控板控件。"
+            android:text="%"
+            android:title="触控板控件灵敏度X轴" />
+
+        <com.limelight.preferences.SeekBarPreference
+            android:key="seekbar_touchpad_sensitivity_y_opacity"
+            seekbar:min="10"
+            seekbar:step="10"
+            android:max="300"
+            android:defaultValue="100"
+            android:summary="适用于虚拟特殊按键触控板控件。"
+            android:text="%"
+            android:title="触控板控件灵敏度Y轴" />
+
 
         <com.limelight.preferences.ConfirmDeleteKeyboardPreference
             android:title="重置屏幕虚拟按键布局"
@@ -582,14 +674,14 @@
         <Preference
             android:key="import_keyboard_file"
             android:title="导入配置文件"
-            android:summary="选择一个配置文件，覆盖默认选择的布局方案。"
+            android:summary="这是导入按钮位置相关配置\n选择一个配置文件，覆盖默认选择的布局方案。"
             android:dependency="checkbox_enable_keyboard"
             />
 
         <Preference
             android:key="export_keyboard_file"
             android:title="导出配置文件"
-            android:summary="导出默认选择的布局方案"
+            android:summary="导出默认选择的布局方案，此处是按钮位置、大小等配置"
             android:dependency="checkbox_enable_keyboard"
             />
 

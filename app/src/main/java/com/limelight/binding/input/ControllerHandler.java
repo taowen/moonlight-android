@@ -37,6 +37,7 @@ import com.limelight.GameMenu;
 import com.limelight.LimeLog;
 import com.limelight.R;
 import com.limelight.binding.input.driver.AbstractController;
+import com.limelight.binding.input.driver.DualSenseController;
 import com.limelight.binding.input.driver.UsbDriverListener;
 import com.limelight.binding.input.driver.UsbDriverService;
 import com.limelight.nvstream.NvConnection;
@@ -577,7 +578,9 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         context.leftStickDeadzoneRadius = (float) stickDeadzone;
         context.rightStickDeadzoneRadius = (float) stickDeadzone;
         context.triggerDeadzone = 0.13f;
-
+        if(prefConfig.disableTriggerDeadzone){
+            context.triggerDeadzone = 0.0f;
+        }
         return context;
     }
 
@@ -919,7 +922,7 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         if (context.rightStickXAxis != -1 && context.rightStickYAxis != -1) {
             context.rightStickDeadzoneRadius = (float) stickDeadzone;
         }
-
+        //todo --trigger
         if (context.leftTriggerAxis != -1 && context.rightTriggerAxis != -1) {
             InputDevice.MotionRange ltRange = getMotionRangeForJoystickAxis(dev, context.leftTriggerAxis);
             InputDevice.MotionRange rtRange = getMotionRangeForJoystickAxis(dev, context.rightTriggerAxis);
@@ -927,11 +930,13 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
             // It's important to have a valid deadzone so controller packet batching works properly
             context.triggerDeadzone = Math.max(Math.abs(ltRange.getFlat()), Math.abs(rtRange.getFlat()));
 
-            // For triggers without (valid) deadzones, we'll use 13% (around XInput's default)
-            if (context.triggerDeadzone < 0.13f ||
-                context.triggerDeadzone > 0.30f)
-            {
-                context.triggerDeadzone = 0.13f;
+            if(!prefConfig.disableTriggerDeadzone){
+                // For triggers without (valid) deadzones, we'll use 13% (around XInput's default)
+                if (context.triggerDeadzone < 0.13f ||
+                        context.triggerDeadzone > 0.30f)
+                {
+                    context.triggerDeadzone = 0.13f;
+                }
             }
         }
 
@@ -1954,8 +1959,15 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         // always be enumerated in this order, but it seems consistent between Xbox Series X (USB),
         // PS3 (USB), and PS4 (USB+BT) controllers on Android 12 Beta 3.
         int[] vibratorIds = vm.getVibratorIds();
-        int[] vibratorAmplitudes = new int[] { highFreqMotor, lowFreqMotor };
-
+        int[] vibratorAmplitudes = new int[2];
+        if(prefConfig.enableFlipRumbleFF){
+            vibratorAmplitudes[0]=lowFreqMotor;
+            vibratorAmplitudes[1]=highFreqMotor;
+        }else{
+            vibratorAmplitudes[0]=highFreqMotor;
+            vibratorAmplitudes[1]=lowFreqMotor;
+        }
+//        int[] vibratorAmplitudes = new int[] { highFreqMotor, lowFreqMotor };
         CombinedVibration.ParallelCombination combo = CombinedVibration.startParallel();
 
         for (int i = 0; i < vibratorIds.length; i++) {
@@ -2012,8 +2024,19 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
         // This is a guess based upon the behavior of FF_RUMBLE, but untested due to lack of Linux
         // support for trigger rumble!
         int[] vibratorIds = vm.getVibratorIds();
-        int[] vibratorAmplitudes = new int[] { highFreqMotor, lowFreqMotor, leftTrigger, rightTrigger };
 
+        int[] vibratorAmplitudes =new int[4];
+
+        if(prefConfig.enableFlipRumbleFF){
+            vibratorAmplitudes[0]=lowFreqMotor;
+            vibratorAmplitudes[1]=highFreqMotor;
+        }else{
+            vibratorAmplitudes[0]=highFreqMotor;
+            vibratorAmplitudes[1]=lowFreqMotor;
+        }
+        vibratorAmplitudes[2]=leftTrigger;
+        vibratorAmplitudes[3]=rightTrigger;
+//        int[] vibratorAmplitudes = new int[] { highFreqMotor, lowFreqMotor, leftTrigger, rightTrigger };
         CombinedVibration.ParallelCombination combo = CombinedVibration.startParallel();
 
         for (int i = 0; i < vibratorIds.length; i++) {
@@ -2047,6 +2070,14 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
             // because our simulatedAmplitude could be 0 even though our inputs
             // are not (ex: lowFreqMotor == 0 && highFreqMotor == 1).
             vibrator.cancel();
+            if(vibrator==deviceVibrator&&prefConfig.enableForceStrongVibrationsStop){
+                vibrator.vibrate(1);
+            }
+            return;
+        }
+        //设备震动马达，并且开启强烈震动
+        if(vibrator==deviceVibrator&&prefConfig.enableForceStrongVibrations){
+            vibrator.vibrate(60000);
             return;
         }
 
@@ -2423,6 +2454,16 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
 
         switch (keyCode) {
         case KeyEvent.KEYCODE_BUTTON_MODE:
+            if(prefConfig.mouseEmulation&&prefConfig.mouseEmulationGameMenu==1){
+                if ((context.inputMap & ControllerPacket.SPECIAL_BUTTON_FLAG) != 0) {
+                    if(prefConfig.enableQtDialog){
+                        //todo 展示快捷菜单
+                        gestures.showGameMenu(context);
+                    }else{
+                        context.toggleMouseEmulation();
+                    }
+                }
+            }
             context.inputMap &= ~ControllerPacket.SPECIAL_BUTTON_FLAG;
             break;
         case KeyEvent.KEYCODE_BUTTON_START:
@@ -2430,20 +2471,32 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
             // Sometimes we'll get a spurious key up event on controller disconnect.
             // Make sure it's real by checking that the key is actually down before taking
             // any action.
-            if ((context.inputMap & ControllerPacket.PLAY_FLAG) != 0 &&
-                    event.getEventTime() - context.startDownTime > ControllerHandler.START_DOWN_TIME_MOUSE_MODE_MS &&
-                    prefConfig.mouseEmulation) {
-                if(prefConfig.enableQtDialog){
-                    //todo 展示快捷菜单
-                    gestures.showGameMenu(context);
-                }else{
-                    context.toggleMouseEmulation();
+            if(prefConfig.mouseEmulation&&prefConfig.mouseEmulationGameMenu==0){
+                if ((context.inputMap & ControllerPacket.PLAY_FLAG) != 0 &&
+                        event.getEventTime() - context.startDownTime > ControllerHandler.START_DOWN_TIME_MOUSE_MODE_MS) {
+                    if(prefConfig.enableQtDialog){
+                        //todo 展示快捷菜单
+                        gestures.showGameMenu(context);
+                    }else{
+                        context.toggleMouseEmulation();
+                    }
                 }
             }
             context.inputMap &= ~ControllerPacket.PLAY_FLAG;
             break;
         case KeyEvent.KEYCODE_BACK:
         case KeyEvent.KEYCODE_BUTTON_SELECT:
+            if(prefConfig.mouseEmulation&&prefConfig.mouseEmulationGameMenu==2){
+                if ((context.inputMap & ControllerPacket.BACK_FLAG) != 0 &&
+                        event.getEventTime() - context.startDownTime > ControllerHandler.START_DOWN_TIME_MOUSE_MODE_MS) {
+                    if(prefConfig.enableQtDialog){
+                        //todo 展示快捷菜单
+                        gestures.showGameMenu(context);
+                    }else{
+                        context.toggleMouseEmulation();
+                    }
+                }
+            }
             context.inputMap &= ~ControllerPacket.BACK_FLAG;
             break;
         case KeyEvent.KEYCODE_DPAD_LEFT:
@@ -2911,6 +2964,15 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
     }
 
     @Override
+    public void reportControllerMotion(int controllerId, byte motionType, float motionX, float motionY, float motionZ) {
+        GenericControllerContext context = usbDeviceContexts.get(controllerId);
+        if (context == null) {
+            return;
+        }
+        conn.sendControllerMotionEvent((byte)context.controllerNumber, motionType, motionX, motionY, motionZ);
+    }
+
+    @Override
     public void deviceRemoved(AbstractController controller) {
         UsbDeviceContext context = usbDeviceContexts.get(controller.getControllerId());
         if (context != null) {
@@ -3132,8 +3194,10 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
                     lightsSession.close();
                 }
             }
-
-            backgroundThreadHandler.removeCallbacks(batteryStateUpdateRunnable);
+            //是否上报电池状态
+            if(prefConfig.enableBatteryReport){
+                backgroundThreadHandler.removeCallbacks(batteryStateUpdateRunnable);
+            }
         }
 
         @Override
@@ -3259,7 +3323,10 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
                     reportedType, supportedButtonFlags, capabilities);
 
             // After reporting arrival to the host, send initial battery state and begin monitoring
-            backgroundThreadHandler.post(batteryStateUpdateRunnable);
+            //是否上报电池状态
+            if(prefConfig.enableBatteryReport){
+                backgroundThreadHandler.post(batteryStateUpdateRunnable);
+            }
         }
 
         public void migrateContext(InputDeviceContext oldContext) {
@@ -3293,7 +3360,10 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
             enableSensors();
 
             // Refresh battery state and start the battery state polling again
-            backgroundThreadHandler.post(batteryStateUpdateRunnable);
+            //是否上报电池状态
+            if(prefConfig.enableBatteryReport){
+                backgroundThreadHandler.post(batteryStateUpdateRunnable);
+            }
         }
 
         public void disableSensors() {
@@ -3389,6 +3459,28 @@ public class ControllerHandler implements InputManager.InputDeviceListener, UsbD
                     sm.registerListener(defaultContext.gyroListener, gyroSensor, 1000000 / reportRateHz);
                 }
                 break;
+        }
+    }
+
+    /**
+     * 设置自适应扳机
+     * @param mode 模式 0关闭 1阻尼 2扳机 6自动步枪
+     * @param strength 震动强度
+     * @param frequency 震动频率（mode=6生效）
+     * @param start 起始位置
+     * @param end 结束位置
+     * @return
+     */
+    public void setDualSenseTrigger(int mode,int strength,int frequency,int start,int end) {
+        if (stopped) {
+            return;
+        }
+        byte[] data=DualSenseController.setTrigger(mode,strength,frequency,start,end);
+        for (int i = 0; i < usbDeviceContexts.size(); i++) {
+            UsbDeviceContext deviceContext = usbDeviceContexts.valueAt(i);
+            if(deviceContext.device instanceof DualSenseController){
+                deviceContext.device.sendCommand(DualSenseController.getTriggerEffectMode(data,data));
+            }
         }
     }
 }

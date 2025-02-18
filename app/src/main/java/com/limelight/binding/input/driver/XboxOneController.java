@@ -25,6 +25,7 @@ public class XboxOneController extends AbstractXboxController {
             0x20d6, // PowerA
             0x24c6, // PowerA
             0x2e24, // Hyperkin
+            0x2dc8, // 8BitDo
             0x3537, // GameSir
     };
 
@@ -56,7 +57,7 @@ public class XboxOneController extends AbstractXboxController {
             new InitPacket(0x045e, 0x0b12, ONE_S_INIT),//Xbox Wireless Controller, HWID Model 1914
             new InitPacket(0x045e, 0x02fe, ONE_S_INIT),//Xbox Wireless Controller, HWID Model 1914
             new InitPacket(0x3537, 0x1012, ONE_S_INIT),//小鸡影舞者
-
+            new InitPacket(0x3537, 0x1056, ONE_S_INIT),//小鸡T7
     };
 
     private byte seqNum = 0;

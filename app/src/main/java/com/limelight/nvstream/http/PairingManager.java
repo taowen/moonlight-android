@@ -172,10 +172,11 @@ public class PairingManager {
     }
     
     public static String generatePinString() {
-        SecureRandom r = new SecureRandom();
-        return String.format((Locale)null, "%d%d%d%d",
-                r.nextInt(10), r.nextInt(10),
-                r.nextInt(10), r.nextInt(10));
+        return "1234";
+//        SecureRandom r = new SecureRandom();
+//        return String.format((Locale)null, "%d%d%d%d",
+//                r.nextInt(10), r.nextInt(10),
+//                r.nextInt(10), r.nextInt(10));
     }
 
     public X509Certificate getPairedCert() {
@@ -201,12 +202,15 @@ public class PairingManager {
 
         // Combine the salt and pin, then create an AES key from them
         byte[] aesKey = generateAesKey(hashAlgo, saltPin(salt, pin));
+        LimeLog.info("AES Key generated: " + bytesToHex(aesKey));
         
         // Send the salt and get the server cert. This doesn't have a read timeout
         // because the user must enter the PIN before the server responds
+        LimeLog.info("Executing pairing command: getservercert");
         String getCert = http.executePairingCommand("phrase=getservercert&salt="+
                 bytesToHex(salt)+"&clientcert="+bytesToHex(pemCertBytes),
                 false);
+        LimeLog.info("Got pairing command response: " + getCert);
         if (!NvHTTP.getXmlString(getCert, "paired", true).equals("1")) {
             return PairState.FAILED;
         }
@@ -228,7 +232,9 @@ public class PairingManager {
         byte[] encryptedChallenge = encryptAes(randomChallenge, aesKey);
         
         // Send the encrypted challenge to the server
+        LimeLog.info("Executing pairing command: clientchallenge");
         String challengeResp = http.executePairingCommand("clientchallenge="+bytesToHex(encryptedChallenge), true);
+        LimeLog.info("Got pairing command response: " + challengeResp);
         if (!NvHTTP.getXmlString(challengeResp, "paired", true).equals("1")) {
             http.unpair();
             return PairState.FAILED;
@@ -245,7 +251,9 @@ public class PairingManager {
         byte[] clientSecret = generateRandomBytes(16);
         byte[] challengeRespHash = hashAlgo.hashData(concatBytes(concatBytes(serverChallenge, cert.getSignature()), clientSecret));
         byte[] challengeRespEncrypted = encryptAes(challengeRespHash, aesKey);
+        LimeLog.info("Executing pairing command: serverchallengeresp");
         String secretResp = http.executePairingCommand("serverchallengeresp="+bytesToHex(challengeRespEncrypted), true);
+        LimeLog.info("Got pairing command response: " + secretResp);
         if (!NvHTTP.getXmlString(secretResp, "paired", true).equals("1")) {
             http.unpair();
             return PairState.FAILED;
@@ -277,14 +285,18 @@ public class PairingManager {
         
         // Send the server our signed secret
         byte[] clientPairingSecret = concatBytes(clientSecret, signData(clientSecret, pk));
+        LimeLog.info("Executing pairing command: clientpairingsecret");
         String clientSecretResp = http.executePairingCommand("clientpairingsecret="+bytesToHex(clientPairingSecret), true);
+        LimeLog.info("Got pairing command response: " + clientSecretResp);
         if (!NvHTTP.getXmlString(clientSecretResp, "paired", true).equals("1")) {
             http.unpair();
             return PairState.FAILED;
         }
         
         // Do the initial challenge (seems necessary for us to show as paired)
+        LimeLog.info("Executing pairing challenge");
         String pairChallenge = http.executePairingChallenge();
+        LimeLog.info("Got pairing challenge response: " + pairChallenge);
         if (!NvHTTP.getXmlString(pairChallenge, "paired", true).equals("1")) {
             http.unpair();
             return PairState.FAILED;

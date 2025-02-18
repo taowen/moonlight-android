@@ -24,6 +24,7 @@ import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.LinkedList;
 import java.util.ListIterator;
+import java.util.Objects;
 import java.util.Stack;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -300,51 +301,42 @@ public class NvHTTP {
     
     public String getServerInfo(boolean likelyOnline) throws IOException, XmlPullParserException {
         String resp;
-
-        // If we believe the PC is online, give it a little extra time to respond
         OkHttpClient client = likelyOnline ? httpClientLongConnectTimeout : httpClientShortConnectTimeout;
-        
-        //
-        // TODO: Shield Hub uses HTTP for this and is able to get an accurate PairStatus with HTTP.
-        // For some reason, we always see PairStatus is 0 over HTTP and only 1 over HTTPS. It looks
-        // like there are extra request headers required to make this stuff work over HTTP.
-        //
 
-        // When we have a pinned cert, use HTTPS to fetch serverinfo and fall back on cert mismatch
+        // 当有pinned证书时,先尝试HTTPS
         if (serverCert != null) {
+            LimeLog.info("Trying HTTPS serverinfo request first...");
             try {
                 try {
                     resp = openHttpConnectionToString(client, getHttpsUrl(likelyOnline), "serverinfo");
                 } catch (SSLHandshakeException e) {
-                    // Detect if we failed due to a server cert mismatch
                     if (e.getCause() instanceof CertificateException) {
-                        // Jump to the GfeHttpResponseException exception handler to retry
-                        // over HTTP which will allow us to pair again to update the cert
+                        LimeLog.warning("HTTPS failed due to certificate mismatch");
                         throw new HostHttpResponseException(401, "Server certificate mismatch");
                     }
                     else {
+                        LimeLog.warning("HTTPS failed: " + e.getMessage());
                         throw e;
                     }
                 }
 
-                // This will throw an exception if the request came back with a failure status.
-                // We want this because it will throw us into the HTTP case if the client is unpaired.
                 getServerVersion(resp);
             }
             catch (HostHttpResponseException e) {
                 if (e.getErrorCode() == 401) {
-                    // Cert validation error - fall back to HTTP
+                    // 证书验证失败 - 回退到HTTP
+                    LimeLog.info("Falling back to HTTP serverinfo request...");
                     return openHttpConnectionToString(client, baseUrlHttp, "serverinfo");
                 }
 
-                // If it's not a cert validation error, throw it
                 throw e;
             }
 
             return resp;
         }
         else {
-            // No pinned cert, so use HTTP
+            // 没有pinned证书,使用HTTP
+            LimeLog.info("No pinned cert - using HTTP serverinfo request...");
             return openHttpConnectionToString(client, baseUrlHttp, "serverinfo");
         }
     }
@@ -460,17 +452,17 @@ public class NvHTTP {
             String respString = resp.string();
             resp.close();
 
-            if (verbose && !path.equals("serverinfo")) {
-                LimeLog.info(getCompleteUrl(baseUrl, path, query)+" -> "+respString);
+            // 打印所有请求的URL和响应
+            if (!Objects.equals(path, "serverinfo")) {
+                LimeLog.info(baseUrl.scheme().toUpperCase() + " " + getCompleteUrl(baseUrl, path, query) + " -> " + respString);
             }
 
             return respString;
         } catch (IOException e) {
-            if (verbose && !path.equals("serverinfo")) {
-                LimeLog.warning(getCompleteUrl(baseUrl, path, query)+" -> "+e.getMessage());
-                e.printStackTrace();
+            // 打印请求失败信息
+            if (!Objects.equals(path, "serverinfo")) {
+                LimeLog.warning(baseUrl.scheme().toUpperCase() + " " + getCompleteUrl(baseUrl, path, query) + " -> " + e.getMessage());
             }
-            
             throw e;
         }
     }

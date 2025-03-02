@@ -2294,7 +2294,7 @@ public class Game extends Activity implements SurfaceHolder.Callback,
                 }
 
                 //五指打开输入法
-                if(prefConfig.enableFiveFingersOperate){
+                if(true){
                     switch (event.getActionMasked()){
                         case MotionEvent.ACTION_POINTER_DOWN:
                             if(event.getPointerCount() == 5){
